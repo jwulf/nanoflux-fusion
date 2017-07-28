@@ -1,5 +1,4 @@
 var nanoflux = require('nanoflux');
-
 var FUSION_STORE_NAME = "__fusionStore__";
 var DEFAULT_FUSIONATOR_NAME = "__defaultFusionator__";
 
@@ -17,6 +16,10 @@ function getFusionStoreDefinition(){
 		return Object.freeze(obj);
 	}
 
+
+
+	var middleware = [];
+
 	var stateHolder = {
 		immutableState : null,
 		setState : function(newState){
@@ -25,25 +28,45 @@ function getFusionStoreDefinition(){
 		}
 	};
 
-	function fuseState(newState, dontNotify){
+	function callMiddlewares(newState, actorName){
+		var mutableState = newState;
+		for(var i = 0; i < middleware.length; ++i){
+			mutableState = middleware[i].call(this, mutableState, stateHolder.immutableState, actorName);
+		}
+		return mutableState;
+	}
+
+	function fuseState(actorName, newState, isInitialization){
 		var state = {};
+
+		if(!isInitialization)
+			newState = callMiddlewares.call(this, newState, actorName);
+
 		Object.assign(state, stateHolder.immutableState, newState);
 		stateHolder.setState(state);
-		if(!dontNotify)
+		if(!isInitialization)
 			this.notify(stateHolder.immutableState);
 	}
 
 	return {
 		on__fuse : function(args){
+
+			var actorName = args.actor;
 			var fusionator = args.fuse.call(null, stateHolder.immutableState, args.params);
 			if(fusionator.then){ // is promise
-				fusionator.then(fuseState.bind(this));
+				fusionator.then(fuseState.bind(this, actorName)).catch(function(e) {
+					console.error("# Nanoflux-Fusion: Promise Exception\n", e );
+				});
 			}else{
-				fuseState.call(this, fusionator);
+				fuseState.call(this, actorName,fusionator);
 			}
+
 		},
 		__initState : function(state){
-			fuseState.call(this,state,true);
+			fuseState.call(this,"__initState",state,true);
+		},
+		use: function(fn){
+			middleware.push(fn);
 		},
 		getState : function(){
 			return stateHolder.immutableState;
@@ -63,17 +86,14 @@ function createFusionStore(isReset){
 var fusionators = [];
 nanoflux.getFusionStore = function(){ return nanoflux.getStore(FUSION_STORE_NAME) };
 
-function createFusionActor(descriptor, actorId, initialState){
+function createFusionActor(descriptor, actorId){
 	return function(){
 		nanoflux.getDispatcher().__fuse({
+			actor: actorId,
 			fuse: descriptor[actorId],
 			params: arguments
 		})
 	}
-}
-
-function initializeState(initialState){
-	var initializeActor = createFusionActor("_")
 }
 
 nanoflux.createFusionator = function(descriptor, initialState, fusionatorName) {

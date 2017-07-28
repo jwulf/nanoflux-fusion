@@ -1,7 +1,7 @@
 {
   "name": "nanoflux-fusion",
   "description": "nanoflux fusion is a redux-inspired application state manager based on nanoflux",
-  "version": "0.4.3-beta",
+  "version": "0.6.0-beta",
   "author": "Oliver Hager",
   "email": "oliver@devbutze.com",
   "private": false,
@@ -17,7 +17,8 @@
     "angular2",
     "ng2",
     "polymer",
-    "webcomponents"
+    "webcomponents",
+    "nanoflux"
   ],
   "dependencies": {
     "nanoflux": "latest"
@@ -45,6 +46,6 @@
     "benchmark": "node --expose-gc ./perf/benchmark.js",
     "benchmark-huge": "node --expose-gc ./perf/benchmark-hugestate.js",
     "build": "gulp",
-    "release" : "npm run build && npm publish"
+    "release": "npm run build && npm publish"
   }
 }
